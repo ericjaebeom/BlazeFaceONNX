@@ -1,0 +1,1 @@
+We use the mamba environment `mediapipeonnx` for this project. Any Python execution, package installation should be done within this mamba environment.

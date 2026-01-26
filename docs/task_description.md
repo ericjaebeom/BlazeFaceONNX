@@ -6,7 +6,7 @@ Our task is to export an ONNX model for the MediaPipe Face Detection Model (Blaz
 
 ## `zmurez/MediaPipePyTorch`
 
-The task is primarily based on the `zmurez/MediaPipePyTorch` GitHub repository, which is added as a git submodule in the `external/MediaPipePytorch` directory of the current repository (`MediaPipeONNX`).
+The task is primarily based on the `zmurez/MediaPipePyTorch` GitHub repository, which is added as a git submodule in the `external/MediaPipePyTorch` directory of the current repository (`MediaPipeONNX`).
 
 The `MediaPipePyTorch` repository provides clean ports of the MediaPipe tflite models to PyTorch, including: PyTorch model definitions, model weights (as `.pt` state dict), post-processing utilities.
 
