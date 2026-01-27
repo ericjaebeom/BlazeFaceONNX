@@ -62,7 +62,7 @@ Runs the BlazeFace convolutional network. Useful when you want to apply your own
 |------|------|-------|
 | `input` | float32 | `(1, 3, H, W)` — `H=W=128` for front, `256` for back |
 
-Input values are in `[0, 255]` range (the model normalizes internally).
+Input values must be normalized to `[0, 1]` range (e.g. divide uint8 pixels by 255).
 
 **Outputs:**
 
@@ -82,7 +82,7 @@ Runs the full detection pipeline: neural network, anchor box decoding, score sig
 | `input` | float32 | `(1, 3, H, W)` | Same as base model |
 | `max_output_boxes` | int64 | scalar | Maximum number of detections to return |
 | `iou_threshold` | float32 | scalar | IoU threshold for NMS suppression/blending (e.g. `0.3`) |
-| `score_threshold` | float32 | scalar | Minimum confidence to keep a detection (e.g. `0.75`) |
+| `score_threshold` | float32 | scalar | Minimum confidence to keep a detection (e.g. `0.5`) |
 
 Anchors and decode scale are embedded in the model as constants.
 
@@ -110,8 +110,8 @@ import onnxruntime as ort
 
 sess = ort.InferenceSession("output/blazeface_front_e2e.onnx")
 
-# Prepare a (1, 3, 128, 128) float32 image in [0, 255] range
-image = np.random.randint(0, 256, (1, 3, 128, 128)).astype(np.float32)
+# Prepare a (1, 3, 128, 128) float32 image in [0, 1] range
+image = np.random.rand(1, 3, 128, 128).astype(np.float32)
 
 detections = sess.run(None, {
     "input": image,
