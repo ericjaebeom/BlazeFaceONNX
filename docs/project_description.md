@@ -12,7 +12,7 @@ The `MediaPipePyTorch` repository provides clean ports of the MediaPipe tflite m
 
 More specifically, (from its root directory) `blazebase.py` defines base classes for PyTorch detector models (`BlazeBase`; specifically `BlazeDetector` in our case), which contains several methods for weight/anchor loading, pre/post-processing, wrapped model inference etc.
 
-`blazeface.py` defines a subclass specific to the BlazeFace model (for both "front/short-range" model and "back/full-range" model; henceforward just "front" and "back"). We can actually export a complete ONNX model of BlazeFace by exporting this `BlazeFace` PyTorch model via `torch.onnx.export`, which wouldn't include its pre/post-processing functions.
+`blazeface.py` defines a subclass specific to the BlazeFace model (for both "front/short-range" model and "back/full-range" model; henceforward just *front* and *back*). We can actually export a complete ONNX model of BlazeFace by exporting this `BlazeFace` PyTorch model via `torch.onnx.export`, which wouldn't include its pre/post-processing functions.
 
 The anchors for the front/back BlazeFace models are provided as `anchors_face.npy` and `anchors_face_back.npy`, respectively (whose usages can be inferred from the postprocessing methods of the `BlazeDetector` baseclass).
 
@@ -22,15 +22,15 @@ Similarly, the weights are provided as `blazeface.pth` and `blazefaceback.pth`.
 
 Given these `MediaPipePyTorch` implementations, our task would focus on exporting an end-to-end ONNX model that encapsulates its [BlazeFace -> postprocessing] inference pipeline (input remains the same as the raw `BlazeFace model`).
 
-We would first export an ONNX model of the `BlazeFace` PyTorch model in isolation using `torch.onnx.export`. This model (i.e. without postprocessing) should support being used independently. Let's call this ONNX model "BlazeFace base ONNX model" (e.g. the exported ONNX model name might be `blazeface_{front/back}_base.onnx`).
+We would first export an ONNX model of the `BlazeFace` PyTorch model in isolation using `torch.onnx.export`. This model (i.e. without postprocessing) should support being used independently. Let's call this ONNX model BlazeFace *base* ONNX model (e.g. the exported ONNX model name might be `blazeface_{front/back}_base.onnx`).
 
 We would then have to define custom ONNX functions, possibly via onnxscript (or direct onnx graph manipulation), for its post-processing logic (i.e. anchor decoding, weighted nms etc.). These functions would be appended to the BlazeFace ONNX model, with their inputs being the output of the BlazeONNX model along with some additional postprocessing parameters depending on their implementations.
 
-Let's call this resulting model "BlazeFace end-to-end ONNX model" (e.g. the exported ONNX model name might be `blazeface_{front/back}_e2e.onnx`).
+Let's call this resulting model BlazeFace *end-to-end* ONNX model (e.g. the exported ONNX model name might be `blazeface_{front/back}_e2e.onnx`).
 
-So ultimately, our "export pipeline" should yield both BlazeFace ONNX model and its end-to-end version, and support both its front and back variants (e.g. configurable by some flag).
+So ultimately, our *export pipeline* should yield both BlazeFace ONNX model and its end-to-end version, and support both its front and back variants (e.g. configurable by some flag).
 
-The current `MediaPipeONNX` repository is for implementing this "export pipeline" for this task. We can freely implement various scripts, utilities, function definitions, tests in any desired structure for this task within this repository.
+The current `MediaPipeONNX` repository is for implementing this export pipeline for this task. We can freely implement various scripts, utilities, function definitions, tests in any desired structure for this task within this repository.
 
 We're currently using (or would use) Python 3.12, with the following core dependencies currently being used (or would be used):
 ```
@@ -68,6 +68,6 @@ While the `zmurez/MediaPipePyTorch` implementation of `BlazeFace` supports arbit
 
 ### Scores in Weighted NMS
 
-For the weighted nms algorithm, the original MediaPipe code assigns the score of the most confident detection to the weighted detection, while the PyTorch port take the average score of the overlapping detections.
+For the weighted nms algorithm, the original MediaPipe code assigns the score of the NMS winner (most confident score) to the weighted detection, while the PyTorch port take the average score of the overlapping detections.
 
-We should use the logic of the original MediaPipe code, which takes the **maximum score of the overlapping detections.**
+We should use the logic of the original MediaPipe code, which takes the **score of the NMS winner.**

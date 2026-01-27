@@ -148,8 +148,11 @@ def weighted_nms(
         weighted_sum = op.ReduceSum(
             weights_3d * reg_3d, op.Constant(value_ints=[1]), keepdims=0
         )  # (S, 16)
-        weight_total = op.ReduceSum(
-            blend_weights, op.Constant(value_ints=[1]), keepdims=1
+        weight_total = op.Clip(
+            op.ReduceSum(
+                blend_weights, op.Constant(value_ints=[1]), keepdims=1
+            ),
+            op.Constant(value_float=1e-6),
         )  # (S, 1)
         blended_regressions = weighted_sum / weight_total  # (S, 16)
 
