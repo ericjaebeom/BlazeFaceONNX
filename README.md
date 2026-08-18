@@ -1,6 +1,6 @@
-# MediaPipeONNX
+# BlazeFaceONNX
 
-Export [BlazeFace](https://arxiv.org/abs/1907.05047) face detection models to ONNX, with postprocessing (anchor decoding, score sigmoid, weighted NMS) baked into the graph.
+Export [BlazeFace](https://arxiv.org/abs/1907.05047) face detection models to ONNX, with postprocessing (anchor decoding, score sigmoid, weighted NMS) baked into the graph — the end-to-end model maps an image directly to final detections, so consumers need no anchor tables, decode math, or NMS code.
 
 Two model variants are available:
 
@@ -14,33 +14,9 @@ Each variant produces two ONNX files:
 - **Base model** — the neural network only (image to raw predictions)
 - **End-to-end model** — neural network + full postprocessing (image to final detections)
 
-## Setup
+## Pre-exported models
 
-Clone with submodules (the PyTorch BlazeFace weights live in `external/MediaPipePytorch`):
-
-```bash
-git clone --recurse-submodules <repo-url>
-```
-
-Install dependencies into a conda/mamba environment:
-
-```bash
-mamba create -n mediapipeonnx python=3.12
-mamba activate mediapipeonnx
-pip install torch onnx onnxscript onnxruntime opencv-python
-```
-
-## Exporting models
-
-```bash
-# Front variant
-python -m mediapipeonnx.export --variant front --output-dir output/
-
-# Back variant
-python -m mediapipeonnx.export --variant back --output-dir output/
-```
-
-This produces:
+The exported models are committed in `output/`:
 
 ```
 output/
@@ -48,6 +24,32 @@ output/
   blazeface_front_e2e.onnx
   blazeface_back_base.onnx
   blazeface_back_e2e.onnx
+```
+
+To run inference you only need one of these files and `onnxruntime` — no other setup. See the [inference example](#inference-example-python) below. The Setup and Exporting sections are only needed to re-export the models yourself.
+
+## Setup
+
+Clone with submodules (the PyTorch BlazeFace weights live in `external/MediaPipePytorch`):
+
+```bash
+git clone --recurse-submodules https://github.com/ericjaebeom/BlazeFaceONNX.git
+```
+
+Install dependencies with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync
+```
+
+## Exporting models
+
+```bash
+# Front variant
+uv run python -m blazefaceonnx.export --variant front --output-dir output/
+
+# Back variant
+uv run python -m blazefaceonnx.export --variant back --output-dir output/
 ```
 
 ## Output models
@@ -126,8 +128,28 @@ for det in detections:
     print(f"Face: ({xmin:.3f}, {ymin:.3f}) - ({xmax:.3f}, {ymax:.3f}), score={score:.3f}")
 ```
 
+## Demos
+
+```bash
+# Detect faces in an image (supply any image file)
+uv run python demo/image_demo.py output/blazeface_front_e2e.onnx path/to/image.jpg
+
+# Live webcam detection
+uv run python demo/livestream_demo.py output/blazeface_front_e2e.onnx --camera 0
+```
+
 ## Running tests
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
+
+## Design
+
+See [docs/design.md](docs/design.md) for the project design, including the ONNX-native weighted NMS formulation.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE).
+
+The model weights originate from Google's [MediaPipe](https://github.com/google-ai-edge/mediapipe) BlazeFace models (Apache-2.0), converted to PyTorch by [zmurez/MediaPipePyTorch](https://github.com/zmurez/MediaPipePyTorch) (building on [hollance/BlazeFace-PyTorch](https://github.com/hollance/BlazeFace-PyTorch)). The ONNX files in `output/` are derived from those weights.

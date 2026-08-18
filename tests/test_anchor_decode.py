@@ -19,7 +19,7 @@ import onnx
 import onnxruntime as ort
 import pytest
 
-from mediapipeonnx.anchor_decode import decode_boxes, make_decode_boxes_model
+from blazefaceonnx.anchor_decode import decode_boxes, make_decode_boxes_model
 
 SUBMODULE_DIR = os.path.join(
     os.path.dirname(__file__), "..", "external", "MediaPipePytorch"
@@ -33,6 +33,9 @@ def decode_boxes_np(
     raw_boxes: np.ndarray, anchors: np.ndarray, scale: float
 ) -> np.ndarray:
     """Numpy reference of BlazeFace _decode_boxes.
+
+    Ported from BlazeDetector._decode_boxes in zmurez/MediaPipePyTorch
+    (blazebase.py, Apache-2.0).
 
     Args:
         raw_boxes: (N, 16) raw regressions.

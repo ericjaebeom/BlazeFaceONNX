@@ -5,7 +5,7 @@ Exports two ONNX models per variant (front/back):
 - End-to-end model: Base + postprocessing (image -> final detections)
 
 Usage:
-    python -m mediapipeonnx.export --variant front --output-dir output/
+    python -m blazefaceonnx.export --variant front --output-dir output/
 """
 
 import argparse
@@ -14,14 +14,13 @@ from pathlib import Path
 
 import numpy as np
 import onnx
-import onnx.compose
 import onnxscript
 import torch
 from onnx import TensorProto, helper
 from onnxscript import FLOAT, INT64, opset20 as op
 
-from mediapipeonnx.anchor_decode import decode_boxes
-from mediapipeonnx.weighted_nms import compute_iou_matrix, weighted_nms
+from blazefaceonnx.anchor_decode import decode_boxes
+from blazefaceonnx.weighted_nms import compute_iou_matrix, weighted_nms
 
 SUBMODULE_DIR = Path(__file__).resolve().parent.parent / "external" / "MediaPipePytorch"
 
@@ -92,6 +91,27 @@ def postprocess(
 # ── Base model export ──────────────────────────────────────────────────
 
 
+def _strip_torch_metadata(model: onnx.ModelProto) -> None:
+    """Remove torch.onnx debug metadata (in place).
+
+    torch.onnx.export attaches per-node metadata_props (stack traces, FX node
+    names, module hierarchies) that embed absolute paths from the exporting
+    machine. None of it is needed for inference.
+    """
+    del model.metadata_props[:]
+
+    def _strip_graph(graph: onnx.GraphProto) -> None:
+        for node in graph.node:
+            del node.metadata_props[:]
+            for attr in node.attribute:
+                if attr.g.ByteSize() > 0:
+                    _strip_graph(attr.g)
+                for g in attr.graphs:
+                    _strip_graph(g)
+
+    _strip_graph(model.graph)
+
+
 def export_base_model(variant: str, output_path: Path) -> onnx.ModelProto:
     """Export the BlazeFace base neural network to ONNX.
 
@@ -136,6 +156,7 @@ def export_base_model(variant: str, output_path: Path) -> onnx.ModelProto:
     data_path = Path(str(output_path) + ".data")
     if data_path.exists():
         data_path.unlink()
+    _strip_torch_metadata(proto)
     onnx.save(proto, str(output_path), save_as_external_data=False)
 
     return proto
@@ -245,13 +266,16 @@ def _merge_models(m1: onnx.ModelProto, m2: onnx.ModelProto) -> onnx.ModelProto:
 
     # Build name mapping for m2's internal names
     m2_rename = {}
-    # The connected outputs: m1 output names are used directly
+    # The connected outputs: m1 output names are used directly.
+    # m2's graph outputs keep their names so the merged model exposes them
+    # unprefixed (e.g. "detections").
     connected = {"raw_boxes", "raw_scores"}
+    preserved = connected | {out.name for out in m2.graph.output}
 
-    # Rename m2 intermediate values (not inputs/outputs that connect to m1)
+    # Rename m2 intermediate values (not names shared with m1 or graph outputs)
     for node in m2.graph.node:
         for i, name in enumerate(node.output):
-            if name and name not in connected:
+            if name and name not in preserved:
                 new_name = prefix + name
                 m2_rename[name] = new_name
 
@@ -273,10 +297,6 @@ def _merge_models(m1: onnx.ModelProto, m2: onnx.ModelProto) -> onnx.ModelProto:
                     _rename_graph(g)
 
     _rename_graph(m2.graph)
-
-    # Also rename m2's output
-    for out in m2.graph.output:
-        out.name = _rename(out.name)
 
     # Build merged graph
     # Nodes: m1 nodes + m2 nodes
@@ -331,19 +351,24 @@ def _merge_models(m1: onnx.ModelProto, m2: onnx.ModelProto) -> onnx.ModelProto:
     return e2e
 
 
-def export_e2e_model(variant: str, output_path: Path) -> onnx.ModelProto:
+def export_e2e_model(
+    variant: str, output_path: Path, base_model: onnx.ModelProto | None = None
+) -> onnx.ModelProto:
     """Export the end-to-end BlazeFace model (base + postprocessing).
 
     Args:
         variant: "front" or "back".
         output_path: Where to save the .onnx file.
+        base_model: Already-exported base ModelProto to reuse. If None, the
+            base model is exported alongside the e2e model.
 
     Returns:
         The merged ONNX ModelProto.
     """
-    # Export base model to a temp path
-    base_path = output_path.parent / f"blazeface_{variant}_base.onnx"
-    m1 = export_base_model(variant, base_path)
+    if base_model is None:
+        base_path = output_path.parent / f"blazeface_{variant}_base.onnx"
+        base_model = export_base_model(variant, base_path)
+    m1 = base_model
 
     # Build postprocessing model
     m2 = _build_postprocess_model(variant)
@@ -376,8 +401,8 @@ def export(variant: str = "front", output_dir: str = "output") -> tuple[Path, Pa
     base_path = out / f"blazeface_{variant}_base.onnx"
     e2e_path = out / f"blazeface_{variant}_e2e.onnx"
 
-    export_base_model(variant, base_path)
-    export_e2e_model(variant, e2e_path)
+    base_model = export_base_model(variant, base_path)
+    export_e2e_model(variant, e2e_path, base_model=base_model)
 
     return base_path, e2e_path
 

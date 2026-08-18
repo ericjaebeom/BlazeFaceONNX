@@ -1,0 +1,35 @@
+[project]
+name = "blazefaceonnx"
+version = "0.1.0"
+description = "End-to-end ONNX export of BlazeFace face detection, with postprocessing (anchor decoding, weighted NMS) baked into the graph"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "numpy>=2.0",
+    "onnx>=1.20",
+    "onnxruntime>=1.23",
+    "onnxscript>=0.5.7",
+    "opencv-python>=4.10",
+    "torch>=2.10",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["blazefaceonnx"]
+
+# Export and inference are CPU tasks; use PyTorch's CPU wheels to avoid
+# pulling multi-GB CUDA packages on `uv sync`.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

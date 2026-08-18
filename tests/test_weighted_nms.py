@@ -18,7 +18,7 @@ import onnx
 import onnxruntime as ort
 import pytest
 
-from mediapipeonnx.weighted_nms import (
+from blazefaceonnx.weighted_nms import (
     weighted_nms,
     compute_iou_matrix,
     make_weighted_nms_model,

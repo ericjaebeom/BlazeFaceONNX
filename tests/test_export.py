@@ -5,7 +5,6 @@ equivalence between the ONNX pipeline and the PyTorch reference
 implementation.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -16,7 +15,7 @@ import onnxruntime as ort
 import pytest
 import torch
 
-from mediapipeonnx.export import (
+from blazefaceonnx.export import (
     SUBMODULE_DIR,
     VARIANT_CONFIG,
     export_base_model,
